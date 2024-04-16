@@ -1,118 +1,182 @@
-import Image from 'next/image'
-import { Inter } from 'next/font/google'
-
-const inter = Inter({ subsets: ['latin'] })
+import { useState, Fragment } from "react";
+import { Dialog, Transition } from '@headlessui/react'
+import { XMarkIcon } from '@heroicons/react/24/outline'
+import JSZip from 'jszip'
+import download from 'js-file-download';
 
 export default function Home() {
+  const [prompt, setPrompt] = useState("");
+  const [logos, setLogos] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [open, setOpen] = useState(false)
+
+  const generateLogos = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch("/api/ai-logo-generator", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ prompt }),
+      });
+
+      const { logos } = await response.json();
+      setOpen(true)
+      setLogos(logos[0]);
+    } catch (error) {
+      console.error("Failed to generate logos:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  async function createZip(logos) {
+    const zip = new JSZip();
+    for (let i = 0; i < logos.length; i++) {
+      try {
+        const response = await fetch(logos[i]);
+        const arrayBuffer = await response.arrayBuffer();
+        zip.file(`image_${i}.jpg`, arrayBuffer);
+      } catch (error) {
+        console.error(`Error adding image ${i} to zip:`, error);
+      }
+    }
+
+    zip.generateAsync({ type: 'blob' }).then((blob) => {
+      download(blob, 'prompt_output_images.zip'); // Change the zip file name as per your requirement
+    });
+  }
+
+  function downloadFiles() {
+    createZip(logos)
+  }
+
   return (
-    <main
-      className={`flex min-h-screen flex-col items-center justify-between p-24 ${inter.className}`}
-    >
-      <div className="z-10 w-full max-w-5xl items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/pages/index.js</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{' '}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
+    <div className="container max-w-300 flex flex-col justify-center mx-auto relative px-2.5 h-screen">
+      <div className='w-full h-full flex flex-col items-center'>
+        <div className='grow grid grid-cols-1 md:grid-cols-2 gap-8 py-12'>
+          <div className='max-w-screen-lg text-center md:text-left mx-auto my-auto'>
+            <div>
+              <h1 className="font-bold text-white text-4xl md:text-5xl mb-10">AI Logo Generator</h1>
+              <h2 className='text-xl md:text-2xl mt-4 mb-6 text-white'>Use advanced AI to generate a beautiful logo. Free to get started. </h2>
+            </div>
+
+            <div className='flex-auto flex-col'>
+              <div className='flex-auto pb-2'>
+                <textarea
+                  type="text"
+                  placeholder="Enter your logo prompt text... Example: Design a logo for a luxury skincare brand using organic ingredients and eco-friendly packaging."
+                  className="rounded placeholder-grayscale-600 placeholder-opacity-50 mb-0 transition-colors duration-300 border border-grayscale-500 w-full p-4 px-3 shadow-inner focus:border-secondary-500 focus:outline-none focus:shadow-sm md:text-lg h-36 max-h-64"
+                  value={prompt}
+                  onChange={(e) => setPrompt(e.target.value)}
+                />
+              </div>
+              <div className='pb-2'>
+                <div className='w-full md:w-auto h-12'>
+                  <button
+                    onClick={generateLogos}
+                    className="font-sans cursor-pointer border-2 font-bold text-white uppercase border-solid transition-colors duration-300 text-base py-4 px-8 w-full rounded bg-primary-500 border-primary-500 hover:border-primary-700 hover:bg-primary-600"
+                    disabled={loading}
+                  >
+                    {
+                      loading ? "Generating..." : "Generate Logos"
+                    }
+                  </button>
+                  <div className="font-sans text-white text-center p-2 font-bold">Powered by: <a href="https://replicate.com" target="_blank" className="cursor-pointer">Replicate</a></div>
+                  <div className="font-sans text-white text-center p-2 font-bold">Developed by: <a href="https://github.com/smarakjeet301" target="_blank" className="cursor-pointer">Smarak Jeet Nayak</a></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
         </div>
+
+
+
       </div>
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700/10 after:dark:from-sky-900 after:dark:via-[#0141ff]/40 before:lg:h-[360px]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
-        />
-      </div>
+      <Transition.Root show={open} as={Fragment}>
+        <Dialog as="div" className="relative z-10" onClose={setOpen}>
+          <Transition.Child
+            as={Fragment}
+            enter="ease-in-out duration-500"
+            enterFrom="opacity-0"
+            enterTo="opacity-100"
+            leave="ease-in-out duration-500"
+            leaveFrom="opacity-100"
+            leaveTo="opacity-0"
+          >
+            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" />
+          </Transition.Child>
 
-      <div className="mb-32 grid text-center lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+          <div className="fixed inset-0 overflow-hidden">
+            <div className="absolute inset-0 overflow-hidden">
+              <div className="pointer-events-none fixed inset-y-0 right-0 flex max-w-full pl-10">
+                <Transition.Child
+                  as={Fragment}
+                  enter="transform transition ease-in-out duration-500 sm:duration-700"
+                  enterFrom="translate-x-full"
+                  enterTo="translate-x-0"
+                  leave="transform transition ease-in-out duration-500 sm:duration-700"
+                  leaveFrom="translate-x-0"
+                  leaveTo="translate-x-full"
+                >
+                  <Dialog.Panel className="pointer-events-auto relative w-screen max-w-md">
+                    <Transition.Child
+                      as={Fragment}
+                      enter="ease-in-out duration-500"
+                      enterFrom="opacity-0"
+                      enterTo="opacity-100"
+                      leave="ease-in-out duration-500"
+                      leaveFrom="opacity-100"
+                      leaveTo="opacity-0"
+                    >
+                      <div className="absolute left-0 top-0 -ml-8 flex pr-2 pt-4 sm:-ml-10 sm:pr-4">
+                        <button
+                          type="button"
+                          className="relative rounded-md text-gray-300 hover:text-white focus:outline-none focus:ring-2 focus:ring-white"
+                          onClick={() => setOpen(false)}
+                        >
+                          <span className="absolute -inset-2.5" />
+                          <span className="sr-only">Close panel</span>
+                          <XMarkIcon className="h-6 w-6 text-white" aria-hidden="true" />
+                        </button>
+                      </div>
+                    </Transition.Child>
+                    <div className="flex h-full flex-col overflow-y-scroll bg-white py-6 shadow-xl">
+                      <div className="px-4 sm:px-6">
+                        <Dialog.Title className="text-base font-semibold leading-6 text-gray-900">
+                          Prompt Output
+                        </Dialog.Title>
+                      </div>
+                      <div className="relative mt-6 flex-1 px-4 sm:px-6">
+                        {logos.length > 0 && (
+                          <div className="mt-4 grid grid-cols-2 gap-4">
+                            {logos.map((logo, index) => (
+                              <img
+                                key={index}
+                                src={logo}
+                                alt={`Logo ${index + 1}`}
+                                className="w-48 h-auto mx-2 my-4"
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                      <button onClick={downloadFiles} className="font-sans cursor-pointer border-2 font-bold text-white uppercase border-solid transition-colors duration-300 text-base p-4 rounded bg-black">Download ZIP</button>
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+                    </div>
+                  </Dialog.Panel>
+                </Transition.Child>
+              </div>
+            </div>
+          </div>
+        </Dialog>
+      </Transition.Root>
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Discover and deploy boilerplate example Next.js&nbsp;projects.
-          </p>
-        </a>
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{' '}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
-  )
+    </div>
+  );
 }
